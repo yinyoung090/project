@@ -100,3 +100,48 @@ tree_clf.predict_proba([[5, 1.5]])
 
 #in[6]
 tree_clf.predict([[5, 1.5]])
+
+#Sensivity to training set details
+#in[7]
+X[(X[:,1] == X[:,1][y==1].max())& (y==1)] #widest Iris-versicolor flower
+
+#in[8]
+not_widest_versicolor = (X[:,1] != 1.8) | (y==2)
+X_tweaked = X[not_widest_versicolor]
+y_tweaked = y[not_widest_versicolor]
+
+tree_clf_tweaked = DecisionTreeClassifier(max_depth=2, random_state=40)
+tree_clf_tweaked.fit(X_tweaked, y_tweaked)
+
+#in[9]
+plt.figure(figsize=(8,4))
+plot_decision_boundary(tree_clf_tweaked, X_tweaked, y_tweaked, legend=False)
+plt.plot([0, 7.5], [0.8, 0.8], "k-", linewidth=2)
+plt.plot([0, 7.5], [1.75, 1.75], "k--", linewidth=2)
+plt.text(1.0, 0.9, "Depth=0", fontsize=15)
+plt.text(1.0, 1.80, "Depth=1", fontsize=13)
+
+save_fig("decision_tree_instability_plot")
+plt.show()
+
+#in[10]
+from sklearn.datasets import make_moons
+Xm, ym = make_moons(n_samples=100, noise=0.25, random_state=53)
+
+deep_tree_clf1 = DecisionTreeClassifier(random_state=42)
+deep_tree_clf2 = DecisionTreeClassifier(min_samples_leaf=4, random_state=42)
+deep_tree_clf1.fit(Xm, ym)
+deep_tree_clf2.fit(Xm, ym)
+
+plt.figure(figsize=(11,4))
+plt.subplot(121)
+plot_decision_boundary(deep_tree_clf1, Xm, ym,axes=[-1.5, 2.5, -1, 1.5], iris=False)
+plt.title("No restrictions", fontsize=16)
+plt.subplot(122)
+plot_decision_boundary(deep_tree_clf2, Xm, ym, axes=[-1.5, 2.5, -1, 1.5], iris=False)
+plt.title("min_samples_leaf = {}".format(deep_tree_clf2.min_samples_leaf), fontsize=14)
+
+save_fig("min_sammples_leaf_plot")
+plt.show()
+
+#in[11]
