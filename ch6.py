@@ -145,3 +145,115 @@ save_fig("min_sammples_leaf_plot")
 plt.show()
 
 #in[11]
+angle = np.pi /180*20
+rotation_matrix = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
+Xr =X.dot(rotation_matrix)
+print(rotation_matrix)
+
+tree_clf_r = DecisionTreeClassifier(random_state=42)
+tree_clf_r.fit(Xr, y)
+
+plt.figure(figsize=(8, 3))
+plot_decision_boundary(tree_clf_r, Xr, y, axes=[0.5, 7.5, -1.0, 1], iris=False)
+
+plt.show()
+
+#ext
+angle60 = np.pi / 180*60
+angle30 = np.pi/ 180*30
+rotation_matrix = np.array([[np.cos(angle60), -np.sin(angle60)], 
+                            [np.sin(angle60), np.cos(angle60)]])
+print("cos(60) =",np.cos(angle60) )
+orig30 = np.array([4.33,2.5])
+rotat = orig30.dot(rotation_matrix)
+print(rotation_matrix)
+print(orig30)
+print(rotat)
+#clockwise is p[x, y] x rotation_matrix, counter clockwise is rotation_matrix x p[x,y]
+
+#ext
+aa = np.array([[1,1],[1,1]])
+bb = np.array([[1,2], [3,4]])
+cc = aa.dot(bb)
+print(cc)
+
+#in[12]
+np.random.seed(6)
+Xs = np.random.rand(100,2) - 0.5
+ys = (Xs[:,0] > 0).astype(np.float32) *2
+
+angle = np.pi /4
+rotation_matrix = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
+Xsr = Xs.dot(rotation_matrix)
+
+tree_clf_s = DecisionTreeClassifier(random_state=42)
+tree_clf_s.fit(Xs, ys)
+tree_clf_sr = DecisionTreeClassifier(random_state=42)
+tree_clf_sr.fit(Xsr, ys)
+
+plt.figure(figsize=(11,4))
+plt.subplot(121)
+plot_decision_boundary(tree_clf_s, Xs, ys, axes=[-0.7, 0.7, -0.7, 0.7], iris=False)
+plt.subplot(122)
+plot_decision_boundary(tree_clf_sr, Xsr, ys, axes=[-0.7, 0.7, -0.7, 0.7], iris=False)
+
+save_fig("sensitivity_to_rotation_plot")
+plt.show()
+
+#Regeression Trees
+#in[13] 
+np.random.seed(42)
+m = 200
+X = np.random.rand(m, 1)
+y = 4* (X - 0.5) **2
+y = y + np.random.rand(m, 1) /10
+
+plt.figure(figsize=(8,4))
+plt.plot(X , y, "yo")
+
+#in[14]
+from sklearn.tree import DecisionTreeRegressor
+
+tree_reg = DecisionTreeRegressor(max_depth=2, random_state=42)
+tree_reg.fit(X, y)
+
+#[15]
+from sklearn.tree import DecisionTreeRegressor
+
+tree_reg1 = DecisionTreeRegressor(random_state=42, max_depth=2)
+tree_reg2 = DecisionTreeRegressor(random_state=42, max_depth=3)
+tree_reg1.fit(X, y)
+tree_reg2.fit(X, y)
+
+def plot_regression_predictions(tree_reg, X, y, axes=[0,1,-0.2, 1], ylabel="$y$"):
+    x1 = np.linspace(axes[0], axes[1], 500).reshape(-1, 1)
+    y_pred = tree_reg.predict(x1)
+    plt.axis(axes)
+    plt.xlabel("$x_1$", fontsize=18)
+    if ylabel:
+        plt.ylabel(ylabel, fontsize=18, rotation=0)
+    plt.plot(X, y, "b.")
+    plt.plot(x1, y_pred, "r.-", linewidth=2, label="$\hat{y}$")
+
+plt.figure(figsize=(11, 4))
+plt.subplot(121)
+plot_regression_predictions(tree_reg1, X, y)
+for split, style in ((0.1973, "k-"), (0.0917, "k--"), (0.7718, "k--")):
+    plt.plot([split, split], [-0.2, 1], style, linewidth=2)
+plt.text(0.21, 0.65, "Depth=0", fontsize=15)
+plt.text(0.01, 0.2, "Depth=1", fontsize=13)
+plt.text(0.65, 0.8, "Depth=1", fontsize=13)
+plt.legend(loc="upper center", fontsize=18)
+plt.title("max_depth=2", fontsize=14)
+
+plt.subplot(122)
+plot_regression_predictions(tree_reg2, X, y, ylabel=None)
+for split, style in((0.1973, "k-"), (0.0917, "k--"), (0.7718, "k--")):
+    plt.plot([split, split], [-0.2, 1], style, linewidth=2)
+for split in (0.0458, 0.1298, 0.2873, 0.040):
+    plt.plot([split, split], [-0.2, 1], "k:", linewidth=1)
+plt.text(0.3, 0.5, "Depth=2", fontsize=13)
+plt.title("max_depth=3", fontsize=14)
+
+save_fig("tree_regresson_plot")
+plt.show()
