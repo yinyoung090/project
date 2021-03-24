@@ -73,3 +73,6 @@ from sklearn.decomposition import PCA
 
 pca = PCA(n_components = 2)
 X2D = pca.fit_transform(X)
+
+#in[9]
+X2D[:5]
