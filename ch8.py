@@ -37,13 +37,20 @@ m = 60
 w1, w2 = 0.1, 0.3
 noise = 0.1
 
+<<<<<<< HEAD
 angles = np.random.rand(m) * 3 * np.pi / 2 - 0.5
+=======
+angles = np.random.randn(m) * 3 * np.pi / 2 - 0.5
+>>>>>>> 99b3447cc7b5d12d7db916637919fa0eae874087
 X = np.empty((m, 3))
 X[:,0] = np.cos(angles) + np.sin(angles)/2 + noise * np.random.randn(m)/2
 X[:,1] = np.sin(angles)*0.7 + noise * np.random.randn(m)/2
 X[:,2] = X[:,0]*w1 + X[:, 1]*w2 + noise *np.random.randn(m)
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 99b3447cc7b5d12d7db916637919fa0eae874087
 #PCA using SVD decomposition
 #in[3]
 X_centered = X - X.mean(axis=0)
@@ -76,6 +83,7 @@ pca = PCA(n_components = 2)
 X2D = pca.fit_transform(X)
 
 #in[9]
+<<<<<<< HEAD
 X2D[:5]
 
 #in[10]
@@ -418,3 +426,6 @@ except ImportError:
 
 
 #in[32]
+=======
+X2D[:5]
+>>>>>>> 99b3447cc7b5d12d7db916637919fa0eae874087
