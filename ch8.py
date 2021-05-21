@@ -418,3 +418,308 @@ except ImportError:
 
 
 #in[32]
+from sklearn.model_selection import train_test_split
+
+X = mnist["data"]
+y = mnist["target"]
+
+X_train, X_test, y_train, y_test = train_test_split(X, y)
+
+#in[33]
+pca = PCA()
+pca.fit(X_train)
+cumsum = np.cumsum(pca.explained_variance_ratio_)
+d = np.argmax(cumsum >= 0.95) +1  #找出cumsum 第一個 >= 0.95的位置, 對應到的就是多少個維度(特徵)
+
+#in[34]
+d
+
+#extra
+print(np.argmax([1,2,3,4,5,6]))
+print(np.argmax([False, False, False, True, True]))
+
+#in[35]
+pca = PCA(n_components=0.95)
+X_reduced = pca.fit_transform(X_train)
+
+#in[36]
+pca.n_components_
+
+#in[37]
+np.sum(pca.explained_variance_ratio_)
+
+#in[38]
+pca = PCA(n_components= 154)
+X_reduced = pca.fit_transform(X_train)
+X_recovered = pca.inverse_transform(X_reduced)
+
+#in[39]
+def plot_digits(instances, images_per_row=5, **options):
+    size = 28
+    images_per_row = min(len(instances), images_per_row)
+    images = [instance.reshape(size, size) for instance in instances]
+    n_rows = (len(instances) - 1) // images_per_row +1
+    row_images = []
+    n_empty = n_rows * images_per_row - len(instances)
+    images.append(np.zeros((size, size * n_empty)))
+    for row in range(n_rows):
+        rimages = images [row * images_per_row : (row+1) * images_per_row]
+        row_images.append(np.concatenate(rimages, axis=1))
+    image = np.concatenate(row_images, axis=0)
+    plt.imshow(image, cmap = mpl.cm.binary, **options)
+    plt.axis("off")
+
+#in[40]
+plt.figure(figsize=(7,4))
+plt.subplot(121)
+plot_digits(X_train[::2100])
+plt.title("Original", fontsize=16)
+plt.subplot(122)
+plot_digits(X_recovered[::2100])
+plt.title("Compressed", fontsize=16)
+
+save_fig("mnist_compression_plot")
+
+#in[41]
+X_reduced_pca = X_reduced
+
+#Incremental PCA
+#in[42]
+from sklearn.decomposition import IncrementalPCA
+
+n_batches =100
+inc_pca = IncrementalPCA(n_components=154)
+for X_batch in np.array_split(X_train, n_batches):
+    print(".", end="") # not show in the book
+    inc_pca.partial_fit(X_batch)
+
+X_reduced = inc_pca.transform(X_train)
+
+#in[43]
+X_recovered_inc_pca = inc_pca.inverse_transform(X_reduced)
+
+#in[44]
+plt.figure(figsize=(7, 4))
+plt.subplot(121)
+plot_digits(X_train[::2100])
+plt.subplot(122)
+plot_digits(X_recovered_inc_pca[::2100])
+plt.tight_layout()
+
+#in[45]
+X_reduced_inc_pca = X_reduced
+
+#in[46]
+np.allclose(pca.mean_, inc_pca.mean_)
+
+#in[47]
+np.allclose(X_reduced_pca, X_reduced_inc_pca)
+
+#Using memmap()
+#in[48]
+filename = "my_mnist.data"
+m, n = X_train.shape
+
+X_mm = np.memmap(filename, dtype='float32', mode='write', shape=(m, n))
+X_mm[:] = X_train
+
+#in[49]
+del X_mm
+
+#in[50]
+X_mm=  np.memmap(filename, dtype='float32', mode="readonly", shape=(m, n))
+
+batch_size =m//n_batches
+inc_pca = IncrementalPCA(n_components=154, batch_size=batch_size)
+inc_pca.fit(X_mm)
+
+#in[51]
+rnd_pca = PCA(n_components=154, svd_solver="randomized", random_state=42)
+X_reduced = rnd_pca.fit_transform(X_train)
+
+#Time complexity
+#in[52]
+import time
+
+for n_components in(2, 10, 154):
+    print("n_comoponents = ", n_components)
+    regular_pca = PCA(n_components = n_components)
+    inc_pca = IncrementalPCA(n_components=n_components, batch_size=500)
+    rnd_pca = PCA(n_components=n_components, random_state=42, svd_solver="randomized")
+
+    for pca in (regular_pca, inc_pca, rnd_pca):
+        t1 = time.time()
+        pca.fit(X_train)
+        t2 = time.time()
+        print("    {}: {:.1f} seconds".format(pca.__class__.__name__, t2 - t1))
+
+#compare PCA and randomized PCA for difference size
+#in[53]
+times_rpca = []
+times_pca = []
+sizes = [1000, 10000, 20000, 30000, 40000, 50000, 70000, 100000, 200000, 500000]
+for n_samples in sizes:
+    X = np.random.randn(n_samples, 5)
+    pca = PCA(n_components =2, svd_solver="randomized", random_state=42)
+    t1 = time.time()
+    pca.fit(X)
+    t2 = time.time()
+    times_rpca.append(t2 - t1)
+    pca = PCA(n_components=2)
+    t1 = time.time()
+    pca.fit(X)
+    t2 = time.time()
+    times_pca.append(t2 - t1)
+
+plt.plot(sizes, times_rpca, "b-o", label="RPCA")
+plt.plot(sizes, times_pca, "r-s", label="PCA")
+plt.xlabel("n_samples")
+plt.ylabel("Training time")
+plt.legend(loc="upper left")
+plt.title("PCA and Randomized PCA time complexity")
+
+#compare performance on datasets of 2000 instance
+#in[54]
+times_rpca = []
+times_pca = []
+sizes = [1000, 2000, 3000, 4000, 5000, 6000]
+for n_feautures in sizes:
+    X = np.random.randn(2000, n_feautures)
+    pca = PCA(n_components = 2, random_state=42, svd_solver="randomized")
+    t1 = time.time()
+    pca.fit(X)
+    t2 = time.time()
+    times_rpca.append(t2 -t1)
+    pca = PCA(n_components=2)
+    t1 = time.time()
+    pca.fit(X)
+    t2 = time.time()
+    times_pca.append(t2 - t1)
+
+plt.plot(sizes, times_rpca, "b-o", label="RPCA")
+plt.plot(sizes, times_pca, "r-s", label="PCA")
+plt.xlabel("n_features")
+plt.ylabel("Training time")
+plt.legend(loc= "upper left")
+plt.title("PCA and Randomized PCA time complexity")
+
+#Kernel PCA
+#in[55]
+X, t = make_swiss_roll(n_samples=1000, noise=0.2, random_state=42)
+
+#in[56]
+from sklearn.decomposition import KernelPCA
+
+rbf_pca = KernelPCA(n_components =2, kernel="rbf", gamma=0.04)
+X_reduced = rbf_pca.fit_transform(X)
+
+#in[57]
+from sklearn.decomposition import KernelPCA
+
+lin_pca = KernelPCA(n_components = 2, kernel="linear", fit_inverse_transform=True)
+rbg_pca = KernelPCA(n_components = 2, kernel="rbf", gamma=0.0433, fit_inverse_transform=True)
+sig_pca = KernelPCA(n_components = 2, kernel="sigmoid", gamma=0.001, coef0=1, fit_inverse_transform=True)
+
+y = t > 6.9
+
+plt.figure(figsize=(11, 4))
+for subplot, pca, title in ((131, lin_pca, "Linear kernel"), (132, rbg_pca, "RBF kernel, $\gamma=0.04$"),
+    (133, sig_pca, "Sigmoid kernel, $\gamma=10^{-3}, r=1$")):
+    X_reduced = pca.fit_transform(X)
+    if subplot == 132:
+        X_reduced_rbf = X_reduced
+
+    plt.subplot(subplot)
+    #plt.plot(X_reduced[y, 0], X_reduced[y, 1], "gs")
+    #plt.plot(X_reduced[~y, 0], X_reduced[~y, 1], y^)
+    plt.title(title, fontsize=14)
+    plt.scatter(X_reduced[:,0], X_reduced[:,1], c=t, cmap=plt.cm.hot)
+    plt.xlabel("$z_1$", fontsize=18)
+    if subplot == 131:
+        plt.ylabel("$z_2$", fontsize=18, rotation=0)
+    plt.grid(True)
+
+
+save_fig("kernel_pca_plot")
+plt.show()
+
+#in[58]
+plt.figure(figsize=(6, 5))
+
+X_inverse = rbf_pca.inverse_transform(X_reduced_rbf)
+
+ax = plt.subplot(111, projection='3d')
+ax.view_init(10, -70)
+ax.scatter(X_inverse[:,0], X_inverse[:,1], X_inverse[:,2], c=t, cmap=plt.cm.hot, market='x')
+ax.set_xlabel("")
+ax.set_ylabel("")
+ax.set_zlabel("")
+ax.set_xticklabels([])
+ax.set_yticklabels([])
+ax.set_zticklabels([])
+
+save_fig("preimage_plot", tight_layout=False)
+plt.show()
+
+#in[59]
+X_reduced = rbf_pca.fit_transform(X)
+
+plt.figure(figsize=(11,4))
+plt.subplot(132)
+plt.scatter(X_reduced[:, 0], X_reduced[:, 1], c=t, cmap=plt.cm.hot, marker='x')
+plt.xlabel("$z_1$", fontsize=18)
+plt.ylabel("$z_2$", fontsize=18, rotation=0)
+plt.grid(True)
+
+#in[60]
+from sklearn.model_selection import GridSearchCV
+from sklearn.linear_model import LogisticRegression
+from sklearn.pipeline import Pipeline
+
+clf = Pipeline([
+    ("kpca", KernelPCA(n_components = 2)),
+    ("log_reg", LogisticRegression(solver="liblinear"))
+])
+
+param_grid = [{
+    "kpca__gamma" : np.linspace(0.03, 0.05, 10),
+    "kpca__kernel" : ["rbf", "sigmoid"]
+}]
+
+grid_search = GridSearchCV(clf, param_grid, cv=3)
+grid_search.fit(X, y)
+
+#in[61]
+print(grid_search.best_params_)
+
+#in[62]
+rbf_pca = KernelPCA(n_components =2, kernel="rbf", gamma=0.0433,
+fit_inverse_transform=True)
+X_reduced = rbf_pca.fit_transform(X)
+X_preimage = rbf_pca.inverse_transform(X_reduced)
+
+#in[63]
+from sklearn.metrics import mean_squared_error
+
+mean_squared_error(X, X_preimage)
+
+#LLE
+#in[64]
+X, t = make_swiss_roll(n_samples=1000, noise=0.2, random_state=42)
+
+#in[65]
+from sklearn.manifold import LocallyLinearEmbedding
+
+lle = LocallyLinearEmbedding(n_components =2, n_neighbors=10, random_state=42)
+X_reduced = lle.fit_transform(X)
+
+#in[66]
+plt.title("unrolled swiss roll using LLE", fontsize=14)
+plt.scatter(X_reduced[:,0], X_reduced[:,1], c=t, cmap=plt.cm.hot)
+plt.xlabel("$z_1$", fontsize=18)
+plt.ylabel("$z_2$", fontsize=18)
+plt.axis([-0.065, 0.055, -0.1, 0.12])
+plt.grid(True)
+
+save_fig("lle_unrolling_plot")
+plt.show()
