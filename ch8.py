@@ -723,3 +723,389 @@ plt.grid(True)
 
 save_fig("lle_unrolling_plot")
 plt.show()
+
+#MDS, Isomap and t-SNE
+#in[67]
+from sklearn.manifold import MDS
+
+mds = MDS(n_components = 2, random_state=42)
+X_reduced_mds = mds.fit_transform(X)
+
+#in[68]
+from sklearn.manifold import Isomap
+
+isomap = Isomap(n_components =2)
+X_reduced_isomap = isomap.fit_transform(X)
+
+#in[69]
+from sklearn.manifold import TSNE
+
+tsne = TSNE(n_components =2, random_state=42)
+X_reduced_tsne = tsne.fit_transform(X)
+
+#in[70]
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+lda = LinearDiscriminantAnalysis(n_components =2)
+X_mnist = mnist["data"]
+y_mnist = mnist["target"]
+lda.fit_transform(X_mnist, y_mnist)
+
+#in[71]
+titles = ["MDS", "Isomap", "t-SNE"]
+
+plt.figure(figsize=(11,4))
+
+for subplot, title, X_reduced in zip((131, 132, 133), titles, (X_reduced_mds, X_reduced_isomap, X_reduced_tsne)):
+    plt.subplot(subplot)
+    plt.title(title)
+    plt.scatter(X_reduced[:,0], X_reduced[:, 1], c=t, cmap=plt.cm.hot)
+    plt.xlabel("$z_1$", fontsize=18)
+    if subplot == 131:
+        plt.ylabel("$z_2$", fontsize=18, rotation=0)
+    plt.grid(True)
+
+save_fig("other_dim_reduction_plot")
+plt.show()
+
+#in[72]
+def learned_parameters(model):
+    return [m for m in dir(model) 
+            if m.endswitch("_") and not m.startswitch("_")]
+
+#Extra Material - Clustering
+#Introducation - Classification vs Clustering
+#in[73]
+from sklearn.datasets import load_iris
+
+#in[74]
+data = load_iris()
+X = data.data
+y = data.target
+data.target_names
+
+#in[75]
+plt.figure(figsize=(9, 3.5))
+
+plt.subplot(121)
+plt.plot(X[y==0, 2], X[y==0, 3], "yo", label="Iris-Setosa")
+plt.plot(X[y==1, 2], X[y==1, 3], "bs", label="Iris-Vericolor")
+plt.plot(X[y==2, 2], X[y==2, 3], "g^", label="Iris-Virginica")
+plt.xlabel("Petal length", fontsize=14)
+plt.ylabel("Paetal width", fontsize=14)
+plt.legend(fontsize=12)
+
+plt.subplot(122)
+plt.scatter(X[:, 2], X[:,3], c="k", marker=".")
+plt.xlabel("Petal length", fontsize=14)
+plt.tick_params(labelleft=False)
+
+save_fig("classificaiton_vs_clustering_diagram")
+plt.show()
+
+#in[76]
+from sklearn.mixture import GaussianMixture
+
+#in[77]
+y_pred = GaussianMixture(n_components = 3, random_state=42).fit(X).predict(X)
+print("y_pred= ", y_pred)
+mapping = np.array([2, 0, 1])
+print("mapping ", mapping)
+y_pred = np.array([mapping[cluster_id] for cluster_id in y_pred])
+print("y_pred= ", y_pred)
+
+#in[78]
+plt.plot(X[y_pred==0, 2], X[y_pred==0, 3], "yo", label="Cluster 1")
+plt.plot(X[y_pred==1, 2], X[y_pred==1, 3], "bs", label="Cluster 2")
+plt.plot(X[y_pred==2, 2], X[y_pred==2, 3], "g^", label="Cluster")
+plt.xlabel("Petal length", fontsize=14)
+plt.ylabel("Petal width", fontsize=14)
+plt.legend(loc="upper left", fontsize=12)
+plt.show()
+
+#in[79]
+np.sum(y_pred==y)
+
+#in[80]
+np.sum(y_pred==y)/len(y_pred)
+
+#K-Means
+#in[81]
+from sklearn.datasets import make_blobs
+
+#in[82]
+blob_centers = np.array(
+    [[0.2, 2.3],
+    [-1.5, 2.3],
+    [-2.8, 1.8],
+    [-2.8, 2.8],
+    [-2.8, 1.3]]
+)
+
+blob_std = np.array([0.4, 0.3, 0.1, 0.1, 0.1])
+
+#in[83]
+X, y = make_blobs(n_samples=2000, centers = blob_centers,
+                    cluster_std=blob_std, random_state=7)
+
+#in[84]
+def plot_clusters(X, y=None):
+    plt.scatter(X[:, 0], X[:,1], c=y,s=1)
+    plt.xlabel("$x_1$", fontsize=14)
+    plt.ylabel("$x_2$", fontsize=14, rotation=0)
+
+#in[85]
+plt.figure(figsize=(8, 4))
+plot_clusters(X)
+save_fig("blob_diagram")
+plt.show()
+
+#Fit and Predict
+#in[86]
+from sklearn.cluster import KMeans
+
+#in[87]
+k = 5
+kmeans = KMeans(n_clusters=k, random_state=42)
+y_pred = kmeans.fit_predict(X)
+
+#in[88]
+y_pred
+
+#in[89]
+y_pred is kmeans.labels_
+
+#in[90]
+kmeans.cluster_centers_
+
+#in[91]
+kmeans.labels_
+
+#in[92]
+X_new = np.array([[0, 2], [3, 2], [-3, 3], [-3, 2.5]])
+kmeans.predict(X_new)
+
+#Decision Boundaries
+#in[93]
+def plot_data(X):
+    plt.plot(X[:, 0], X[:,1], 'k.', markersize=2)
+
+def plot_centroids(centroids, weights=None, circle_color='w', cross_color='k'):
+    if weights is not None:
+        centroids = centroids[weights > weights.max() / 10]
+    plt.scatter(centroids[:, 0] , centroids[:, 1],
+        marker='o', s=30, linewidths=8,
+        color=circle_color, zorder=10, alpha=0.9)
+    plt.scatter(centroids[:, 0], centroids[:, 1],
+        marker='x', s=50, linewidths=50,
+        color=cross_color, zorder=11, alpha=1)
+
+def plot_decision_boundaries(clusterer, X, resolution=1000, show_centroids=True, 
+                            show_xlabels=True, show_ylabels=True):
+    mins = X.min(axis=0) - 0.1
+    maxs = X.max(axis=0) + 0.1
+    xx, yy = np.meshgrid(np.linspace(mins[0], maxs[0], resolution),
+                        np.linspace(mins[1], maxs[1], resolution))
+    Z = clusterer.predict(np.c_[xx.ravel(), yy.ravel()])
+    Z = Z.reshape(xx.shape)
+
+    plt.contourf(Z, extent=(mins[0], maxs[0], mins[1], maxs[1]), cmap="Pastel2")
+    plt.contour(Z, extent=(mins[0], maxs[0], mins[1], maxs[1]), linewidths=1, colors='k')
+    plot_data(X)
+    if show_centroids:
+        plot_centroids(clusterer.cluster_centers_)
+    
+    if show_xlabels:
+        plt.xlabel("$x_1$", fontsize=14)
+    else:
+        plt.tick_params(labelbottom=False)
+    if show_ylabels:
+        plt.ylabel("$x_2$", fontsize=14, rotation=0)
+    else:
+        plt.tick_params(labelleft=False)
+
+#in[94]
+plt.figure(figsize=(8, 4))
+plot_decision_boundaries(kmeans, X)
+save_fig("voronoi_diagram")
+plt.show()
+
+#Hard Clustering vs Soft Clustering
+#IN[95]
+kmeans.transform(X_new)
+
+#in[96]
+np.linalg.norm(np.tile(X_new, (1, k)).reshape(-1, k, 2) - kmeans.cluster_centers_, axis=2)
+
+
+#K-Means Algorithm
+#in[97]
+kmeans_iter1 = KMeans(n_clusters=5, init="random", n_init=1, algorithm="full", max_iter=1, random_state=1)
+kmeans_iter2 = KMeans(n_clusters=5, init="random", n_init=1, algorithm='full', max_iter=2, random_state=1)
+kmeans_iter3 = KMeans(n_clusters=5, init="random", n_init=1, algorithm="full", max_iter=3, random_state=1)
+kmeans_iter1.fit(X)
+kmeans_iter2.fit(X)
+kmeans_iter3.fit(X)
+
+#in[98]
+plt.figure(figsize=(10, 8))
+
+plt.subplot(321)
+plot_data(X)
+plot_centroids(kmeans_iter1.cluster_centers_, circle_color='r', cross_color='w')
+plt.ylabel("$x_2$", fontsize=14, rotation=0)
+plt.tick_params(labelbottom=False)
+plt.title("Update the centroids (initially randomly)", fontsize=14)
+
+plt.subplot(322)
+plot_decision_boundaries(kmeans_iter1, X, show_xlabels=False, show_ylabels=False)
+plt.title("Label the instances", fontsize=14)
+
+plt.subplot(323)
+plot_decision_boundaries(kmeans_iter1, X, show_centroids=False, show_xlabels=False)
+plot_centroids(kmeans_iter2.cluster_centers_)
+
+plt.subplot(324)
+plot_decision_boundaries(kmeans_iter2, X, show_xlabels=False, show_ylabels=False)
+
+plt.subplot(325)
+plot_decision_boundaries(kmeans_iter2, X, show_centroids=False)
+plot_centroids(kmeans_iter3.cluster_centers_)
+
+plt.subplot(326)
+plot_decision_boundaries(kmeans_iter3, X, show_ylabels=False)
+
+save_fig("kmeans_algorithm_diagram")
+plt.show()
+
+#K-Means Variability
+#in[99]
+def plot_clusterer_comparison(clusterer1, clusterer2, X, title1=None, title2=None):
+    clusterer1.fit(X)
+    clusterer2.fit(X)
+
+    plt.figure(figsize=(10,3.2))
+
+    plt.subplot(121)
+    plot_decision_boundaries(clusterer1, X)
+    if title1:
+        plt.title(title1, fontsize=14)
+
+    plt.subplot(122)
+    plot_decision_boundaries(clusterer2, X)
+    if title2:
+        plt.title(title2, fontsize=14)
+
+#in[100]
+kmeans_rnd_init1 = KMeans(n_clusters=5, init="random", n_init=1, algorithm="full", random_state=11)
+kmeans_rnd_init2 = KMeans(n_clusters=5, init="random", n_init=1, algorithm="full", random_state=19)
+
+plot_clusterer_comparison(kmeans_rnd_init1, kmeans_rnd_init2, X, "Solution 1", "Solution 2 (with a different random_init)")
+save_fig("kmeans_variability_diagram")
+plt.show()
+
+#Inertia
+#in[101]
+kmeans.inertia_
+
+#in[102]
+X_dist = kmeans.transform(X)
+np.sum(X_dist[np.arange(len(X_dist)), kmeans.labels_]**2)
+
+#in[103]
+kmeans.score(X)
+
+#Multiple Initializations
+#in[104]
+kmeans_rnd_init1.inertia_
+
+#in[105]
+kmeans_rnd_init2.inertia_
+
+#in[106]
+kmeans_rnd_10_inits = KMeans(n_clusters=5, init="random", n_init=10, algorithm="full", random_state=11)
+kmeans_rnd_10_inits.fit(X)
+
+#in[107]
+plt.figure(figsize=(8, 4))
+plot_decision_boundaries(kmeans_rnd_10_inits, X)
+plt.show()
+
+#K-Means++
+#in[108]
+KMeans()
+
+#in[109]
+good_init = np.array([[-3, 3], [-3, 2], [-3, 1], [-1, 2], [0, 2]])
+kmeans = KMeans(n_clusters=5, init=good_init, n_init=1, random_state=42)
+kmeans.fit(X)
+kmeans.inertia_
+
+
+#Accelerated K-Means
+#in[110]
+#%timeit -n 50 KMeans(algorithm="elkan").fit(X)
+
+#in[111]
+#%timeit -n 50 KMeans(algorithm="full").fit(X)
+
+#Mini-Batch K-Means
+#in[112]
+from sklearn.cluster import MiniBatchKMeans
+
+#in[113]
+minibatch_kmeans = MiniBatchKMeans(n_clusters=5, random_state=42)
+minibatch_kmeans.fit(X)
+
+#in[114]
+minibatch_kmeans.inertia_
+
+#in[115]
+filename = "my_mnist.data"
+m, n = 50000, 28*28
+X_mm = np.memmap(filename, dtype="float32", mode="readonly", shape=(m, n))
+
+#in[116]
+minibatch_kmeans = MiniBatchKMeans(n_clusters=5, batch_size=10, random_state=42)
+minibatch_kmeans.fit(X_mm)
+
+#if data is so large that can't use memmap. let start by writing a function to load next batch
+#in[117]
+def load_next_batch(batch_size):
+    return X[np.random.choice(len(X), batch_size, replace=False)]
+
+#in[118]
+np.random.seed(42)
+
+#in[119]
+k = 5
+n_init = 10
+n_iterations = 100
+batch_size = 100
+init_size = 500 # more data for K-Means++ initializaiton
+evaluate_on_last_n_iters = 10
+
+best_kmeans = None
+for init in range(n_init):
+    minibatch_kmeans = MiniBatchKMeans(n_clusters=k, init_size=init_size)
+    X_init = load_next_batch(init_size)
+    minibatch_kmeans.partial_fit(X_init)
+
+    minibatch_kmeans.sum_inertia_ = 0
+    for iteration in range(n_iterations):
+        X_batch = load_next_batch(batch_size)
+        minibatch_kmeans.partial_fit(X_batch)
+        if iteration >= n_iterations - evaluate_on_last_n_iters:
+            minibatch_kmeans.sum_inertia_ += minibatch_kmeans.inertia_
+    
+    if(best_kmeans is None or minibatch_kmeans.sum_inertia_ < best_kmeans.sum_inertia_):
+        best_kmeans = minibatch_kmeans
+
+#in[120]
+best_kmeans.score(X)
+
+#minibatch KMeans is much faster than regular K-Means
+#in[121]
+%timeit KMeans(n_clusters=5).fit(X)
+
+#in[122]
+%timeit MiniBatchKMeans(n_clusters=5).fit(X)
