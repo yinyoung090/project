@@ -5,6 +5,9 @@ from __future__ import division, print_function, unicode_literals
 # Common imports
 import numpy as np
 import os
+from numpy.lib.function_base import percentile
+
+from sklearn import pipeline
 
 # to make this notebook's output stable across runs
 np.random.seed(42)
@@ -409,8 +412,8 @@ plt.plot(X3[:, 0], X3[:, 1], "bo", alpha=0.5)
 import urllib.request
 try:
     from sklearn.datasets import fetch_openml
-    #mnist = fetch_openml('mnist_784', version=1, as_frame=False)
-    mnist = fetch_openml('mnist_784', version=1)
+    mnist = fetch_openml('mnist_784', version=1, as_frame=False)
+    #mnist = fetch_openml('mnist_784', version=1)
     mnist.target = mnist.target.astype(np.int64)
 except ImportError:
     from sklear.datasets import fetch_mldata
@@ -617,13 +620,13 @@ X_reduced = rbf_pca.fit_transform(X)
 from sklearn.decomposition import KernelPCA
 
 lin_pca = KernelPCA(n_components = 2, kernel="linear", fit_inverse_transform=True)
-rbg_pca = KernelPCA(n_components = 2, kernel="rbf", gamma=0.0433, fit_inverse_transform=True)
+rbf_pca = KernelPCA(n_components = 2, kernel="rbf", gamma=0.0433, fit_inverse_transform=True)
 sig_pca = KernelPCA(n_components = 2, kernel="sigmoid", gamma=0.001, coef0=1, fit_inverse_transform=True)
 
 y = t > 6.9
 
 plt.figure(figsize=(11, 4))
-for subplot, pca, title in ((131, lin_pca, "Linear kernel"), (132, rbg_pca, "RBF kernel, $\gamma=0.04$"),
+for subplot, pca, title in ((131, lin_pca, "Linear kernel"), (132, rbf_pca, "RBF kernel, $\gamma=0.04$"),
     (133, sig_pca, "Sigmoid kernel, $\gamma=10^{-3}, r=1$")):
     X_reduced = pca.fit_transform(X)
     if subplot == 132:
@@ -650,7 +653,7 @@ X_inverse = rbf_pca.inverse_transform(X_reduced_rbf)
 
 ax = plt.subplot(111, projection='3d')
 ax.view_init(10, -70)
-ax.scatter(X_inverse[:,0], X_inverse[:,1], X_inverse[:,2], c=t, cmap=plt.cm.hot, market='x')
+ax.scatter(X_inverse[:,0], X_inverse[:,1], X_inverse[:,2], c=t, cmap=plt.cm.hot, marker='x')
 ax.set_xlabel("")
 ax.set_ylabel("")
 ax.set_zlabel("")
@@ -1109,3 +1112,362 @@ best_kmeans.score(X)
 
 #in[122]
 %timeit MiniBatchKMeans(n_clusters=5).fit(X)
+
+#in[123]
+from timeit import timeit
+
+#in[124]
+times = np.empty((100, 2))
+inertias = np.empty((100, 2))
+for k in range(1, 101):
+    kmeans = KMeans(n_clusters=k, random_state=42)
+    minibatch_kmeans = MiniBatchKMeans(n_clusters=k, random_state=42)
+    print("\r{}/{}".format(k, 100), end="")
+    times[k-1, 0] = timeit("kmeans.fit(X)", number=10, globals=globals())
+    times[k-1, 1] = timeit("minibatch_kmeans.fit(X)", number=10, globals=globals())
+    inertias[k-1, 0] = kmeans.inertia_
+    inertias[k-1, 1] = minibatch_kmeans.inertia_
+
+#in[125]
+plt.figure(figsize=(10, 4))
+
+plt.subplot(121)
+plt.plot(range(1, 101), inertias[:, 0], "r--", label="K-Means")
+plt.plot(range(1, 101), inertias[:, 1], "b.-", label = "Mini-batch K-Means")
+plt.xlabel("$k$", fontsize=16)
+#plt.ylabel("Inertia", fontsize=14)
+plt.title("Inertia", fontsize=14)
+plt.legend(fontsize=14)
+plt.axis([1, 100, 0, 100])
+
+plt.subplot(122)
+plt.plot(range(1, 101), times[:, 0], "r--", label="K-Means")
+plt.plot(range(1, 101), times[:, 1], "b.-", label="Mini-batch K-Means")
+plt.xlabel("$k$", fontsize=16)
+#plt.ylable("Training time(seconds)", fontsize=14)
+plt.title("Training time (seconds)", fontsize=14)
+plt.axis([1, 100, 0, 6])
+#plt.legend(fontsize=14)
+
+save_fig("minibatch_kmeans_vs_kmeans")
+plt.show()
+
+#Finding the optimal number of clusters
+#in[126]
+kmeans_k3 = KMeans(n_clusters=3, random_state=42)
+kmeans_k8 = KMeans(n_clusters=8, random_state=42)
+
+plot_clusterer_comparison(kmeans_k3, kmeans_k8, X, "$k=3$", "$k=8$")
+save_fig("bad_n_clusters_diagram")
+plt.show()
+
+#in[127]
+kmeans_k3.inertia_
+
+#in[128]
+kmeans_k8.inertia_
+
+#in[129]
+kmeans_per_k = [KMeans(n_clusters=k, random_state=42).fit(X) for k in range(1, 10)]
+inertias= [model.inertia_ for model in kmeans_per_k]
+
+#in[130]
+plt.figure(figsize=(8, 3.5))
+plt.plot(range(1, 10), inertias, "bo-")
+plt.xlabel("$k$", fontsize=14)
+plt.ylabel("Inertia", fontsize=14)
+plt.annotate('Elbow', 
+            xy=(4, inertias[3]),
+            xytext=(0.55, 0.55),
+            textcoords='figure fraction',
+            fontsize=16, 
+            arrowprops=dict(facecolor='black', shrink=0.1))
+plt.axis([1, 8.5, 0, 1300])
+save_fig("inertia_vs_k_diagram")
+plt.show()
+
+#in[131]
+plot_decision_boundaries(kmeans_per_k[4-1], X)
+plt.show()
+
+#in[132]
+from sklearn.metrics import silhouette_score
+
+#in[133]
+silhouette_score(X, kmeans.labels_)
+
+#in[134]
+silhouette_scores = [silhouette_score(X, model.labels_) for model in kmeans_per_k[1:]]
+
+#in[136]
+plt.figure(figsize=(8, 3))
+plt.plot(range(2, 10), silhouette_scores, "bo-")
+plt.xlabel("$k$", fontsize=14)
+plt.ylabel("Silhouette score", fontsize=14)
+plt.axis([1.8, 8.5, 0.55, 0.7])
+save_fig("silhouette_score_vs_k_diagram")
+plt.show()
+
+#in[136]
+from sklearn.metrics import silhouette_samples
+from matplotlib.ticker import FixedLocator, FixedFormatter
+
+plt.figure(figsize=(11, 9))
+
+for k in(3, 4, 5, 6):
+    plt.subplot(2, 2, k-2)
+
+    y_pred = kmeans_per_k[k-1].labels_
+    silhouette_coefficients = silhouette_samples(X, y_pred)
+
+    padding = len(X) // 30
+    pos = padding
+    ticks = []
+    for i in range(k):
+        coeffs = silhouette_coefficients[y_pred ==i]
+        coeffs.sort()
+
+        color = mpl.cm.Spectral(i/k)
+        plt.fill_betweenx(np.arange(pos, pos + len(coeffs)), 0, coeffs, 
+                            facecolor=color,edgecolor=color, alpha=0.7)
+        ticks.append(pos + len(coeffs) // 2)
+        pos += len(coeffs) + padding
+
+    plt.gca().yaxis.set_major_locator(FixedLocator(ticks))
+    plt.gca().yaxis.set_major_formatter(FixedFormatter(range(k)))
+    if k in (3, 5):
+        plt.ylabel("Cluster")
+    if k in (5, 6):
+        plt.gca().set_xticks([-0.1, 0, 0.2, 0.4, 0.6, 0.8, 1])
+        plt.xlabel("Silhouette Coefficient")
+    else:
+        plt.tick_params(labelbottom=False)
+
+    plt.axvline(x=silhouette_scores[k-2], color="red", linestyle="--")
+    plt.title("$k={}$".format(k), fontsize=16)
+
+save_fig("silhouette_analysis_diagram")
+plt.show()
+
+#Limits of K-Means
+#in[137]
+X1, y1 = make_blobs(n_samples=1000, centers = ((4,-4), (0, 0)), random_state=42)
+X1 = X1.dot(np.array([[0.374, 0.95], [0.732, 0.598]]))
+X2, y2 = make_blobs(n_samples=250, centers=1, random_state=42)
+X2 = X2 + [6, -8]
+X = np.r_[X1, X2]
+y = np.r_[y1, y2]
+
+#in[138]
+plot_clusters(X)
+
+#in[139]
+kmeans_good = KMeans(n_clusters=3, init=np.array([[-1.5, 2.5], [0.5, 0], [4, 0]]), 
+    n_init=1, random_state=42)
+kmeans_bad = KMeans(n_clusters=3, random_state=42)
+kmeans_good.fit(X)
+kmeans_bad.fit(X)
+
+#in[140]
+plt.figure(figsize=(10, 3.2))
+
+plt.subplot(121)
+plot_decision_boundaries(kmeans_good, X)
+plt.title("Inertia={:.1f}".format(kmeans.inertia_), fontsize=14)
+
+plt.subplot(122)
+plot_decision_boundaries(kmeans_bad, X, show_ylabels=False)
+plt.title("Inertia = {:.1f}".format(kmeans_bad.inertia_), fontsize=14)
+
+save_fig("bad_kmeans_diagram")
+plt.show()
+
+#Using clustering for image segmentation
+#in[141]
+#Download the Ladybug image
+images_path = os.path.join(PROJECT_ROOT_DIR, "images", "unsupervised_learning")
+os.makedirs(images_path, exist_ok=True)
+DOWNLOAD_ROOT = "https://raw.githubusercontent.com/ageron/handson-ml2/master/"
+filename = "ladybug.png"
+print("downloading", filename)
+url = DOWNLOAD_ROOT + "images/unsupervised_learning/" + filename
+urllib.request.urlretrieve(url, os.path.join(images_path, filename))
+
+#in[142]
+from matplotlib.image import imread
+image = imread(os.path.join("images" , "unsupervised_learning", "ladybug.png"))
+image.shape
+print(image[:3])
+
+#in[143]
+X = image.reshape(-1, 3)
+print("X shape = {}".format(X.shape))
+kmeans = KMeans(n_clusters=8, random_state=42).fit(X)
+segmented_img = kmeans.cluster_centers_[kmeans.labels_]
+print("segmented_img shape = {}".format(segmented_img.shape))
+segmented_img =segmented_img.reshape(image.shape)
+print("segmented_img shape = {}".format(segmented_img.shape))
+
+#in[144]
+segmented_imgs = []
+n_colors = (10, 8, 6, 4, 2)
+for n_clusters in n_colors:
+    kmeans = KMeans(n_clusters=n_clusters, random_state=42).fit(X)
+    segmented_img = kmeans.cluster_centers_[kmeans.labels_]
+    segmented_imgs.append(segmented_img.reshape(image.shape))
+
+#in[145]
+plt.figure(figsize=(10, 5))
+plt.subplots_adjust(wspace=0.05, hspace=0.1)
+
+plt.subplot(231)
+plt.imshow(image)
+plt.title("Original image")
+plt.axis("off")
+
+for idx, n_clusters in enumerate(n_colors):
+    plt.subplot(232 + idx)
+    plt.imshow(segmented_imgs[idx])
+    plt.title("{} colors".format(n_clusters))
+    plt.axis("off")
+
+save_fig("image_segmentation_diagram", tight_layout=False)
+plt.show()
+
+#Using Clustering for Preprocessing
+#in[146]
+from sklearn.datasets import load_digits
+
+#in[147]
+X_digits, y_digits = load_digits(return_X_y=True)
+
+#in[148]
+from sklearn.model_selection import train_test_split
+
+#in[149]
+X_train, X_test, y_train, y_test = train_test_split(X_digits, y_digits, random_state=42)
+
+#in[150]
+from sklearn.linear_model import LogisticRegression
+
+#in[151]
+log_reg = LogisticRegression(multi_class="ovr", solver="liblinear", random_state=42)
+log_reg.fit(X_train, y_train)
+
+#in[152]
+log_reg.score(X_test, y_test)
+
+#in[153]
+from sklearn.pipeline import Pipeline
+
+#in[154]
+pipeline = Pipeline([
+    ("kmeans", KMeans(n_clusters=50, random_state=42)),
+    ("log_reg", LogisticRegression(multi_class="ovr", solver="liblinear", random_state=42))
+])
+pipeline.fit(X_train, y_train)
+
+#ini[155]
+pipeline.score(X_test, y_test)
+
+#in[156]
+1 - (1 - 0.9822222)/(1 - 0.9666666)
+
+#in[157]
+from sklearn.model_selection import GridSearchCV
+
+#in[158]
+param_grid = dict(kmeans__n_clusters=range(2, 100)) # Create a dictionary
+grid_clf = GridSearchCV(pipeline, param_grid, cv=3, verbose=2)
+grid_clf.fit(X_train, y_train)
+
+#in[159]
+grid_clf.best_params_
+
+#in[160]
+grid_clf.score(X_test, y_test)
+
+#Clustering for Semi-Supervised learning
+#in[161]
+n_labeled = 50
+
+#in[162]
+log_reg = LogisticRegression(multi_class="ovr", solver="liblinear", random_state=42)
+log_reg.fit(X_train[:n_labeled], y_train[:n_labeled])
+log_reg.score(X_test, y_test)
+
+#in[163]
+k = 50
+
+#in[164]
+kmeans = KMeans(n_clusters=k, random_state=42)
+X_digits_dist = kmeans.fit_transform(X_train)
+print(X_digits.shape)
+representative_digit_idx = np.argmin(X_digits_dist, axis=0)
+X_representative_digits = X_train[representative_digit_idx]
+
+#in[165]
+plt.figure(figsize=(8, 2))
+for index, X_representative_digit in enumerate(X_representative_digits):
+    plt.subplot(k//10, 10, index + 1)
+    plt.imshow(X_representative_digit.reshape(8, 8), cmap="binary", interpolation="bilinear")
+    plt.axis("off")
+
+save_fig("representative_images_diagram", tight_layout=False)
+plt.show()
+
+#in[166]
+y_representative_digits = np.array([
+    4, 8, 0, 6, 8, 3, 7, 7, 9, 2,
+    5, 5, 8, 5, 2, 1, 2, 9, 6, 1,
+    1, 6, 9, 0, 8, 3, 0, 7, 4, 1,
+    6, 5, 2, 4, 1, 8, 6, 3, 9, 2,
+    4, 2, 9, 4, 7, 6, 2, 3, 1, 1
+])
+
+#in[167]
+log_reg = LogisticRegression(multi_class="ovr", solver="liblinear", random_state=42)
+log_reg.fit(X_representative_digits, y_representative_digits)
+log_reg.score(X_test, y_test)
+
+#in[168]
+y_train_propagated = np.empty(len(X_train), dtype=np.int32)
+for i in range(k):
+    y_train_propagated[kmeans.labels_ ==i] = y_representative_digits[i]
+
+#in[169]
+log_reg = LogisticRegression(multi_class="ovr", solver="liblinear", random_state=42)
+log_reg.fit(X_train, y_train_propagated)
+
+#in[170]
+log_reg.score(X_test, y_test)
+
+#in[171]
+percentile_closest = 20
+
+X_cluster_dist = X_digits_dist[np.arange(len(X_train)), kmeans.labels_]
+for i in range(k):
+    in_cluster = (kmeans.labels_ == i)
+    cluster_dist = X_cluster_dist[in_cluster]
+    cutoff_distance = np.percentile(cluster_dist, percentile_closest)
+    above_cutoff = (X_cluster_dist > cutoff_distance)
+    X_cluster_dist[in_cluster & above_cutoff] = -1
+
+#in[172]
+partially_progated = (X_cluster_dist != -1)
+X_train_partially_propagated = X_train[partially_progated]
+y_train_partially_propagated = y_train[partially_progated]
+
+#in[173]
+log_reg = LogisticRegression(multi_class="ovr", solver="liblinear", random_state=42)
+log_reg.fit(X_train_partially_propagated, y_train_partially_propagated)
+
+#in[174]
+log_reg.score(X_test, y_test)
+
+#in[175]
+np.mean(y_train_partially_propagated == y_train[partially_progated])
+
+#DBSCAN
+#in[176]
+ 
